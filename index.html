@@ -7,40 +7,35 @@
 <title>مداقش خالد</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#09291f;color:white;font-family:Arial,sans-serif;text-align:center;padding:12px}
+body{margin:0;padding:12px;background:#09291f;color:white;font-family:Arial;text-align:center}
 h1{color:#f2cc70;margin:12px}
 .subtitle{color:#d8c58d;margin-bottom:18px}
 .table{background:radial-gradient(#126044,#073526);border:9px solid #805633;border-radius:35px;padding:15px;margin:auto;max-width:850px}
 .players{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .player{border:4px solid #398bd0;border-radius:22px;padding:12px 5px;min-height:145px;background:#102d25}
 .player.odd{border-color:#c64d52}
-.player.active{outline:5px solid #e9c15f;transform:scale(1.02)}
+.player.active{outline:5px solid #e9c15f}
 .player strong{font-size:25px}
 .score{color:#f3ce70;font-weight:bold;margin:8px}
-.back{font-size:25px;letter-spacing:-7px;color:#f4d8d0;margin:8px}
+.back{font-size:23px;margin:8px}
 .market{margin:25px auto 10px;background:#111;border:6px solid #d9ad53;border-radius:30px;padding:15px;width:220px}
-.market .amount{font-size:48px;color:#f3ce70;font-weight:bold}
+.amount{font-size:48px;color:#f3ce70;font-weight:bold}
 .section{margin:22px auto;max-width:850px}
 .cards{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
-.card{background:white;color:#171717;border-radius:13px;width:75px;height:112px;padding:8px;text-align:left;font-size:24px;font-weight:bold;box-shadow:0 4px 8px #0006}
+.card{background:white;color:#171717;border-radius:13px;width:75px;height:112px;padding:8px;text-align:left;font-size:24px;font-weight:bold}
 .card.red{color:#c62828}
 .card small{display:block;font-size:22px;margin-top:5px}
 .controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:15px auto}
-button{border:2px solid #d9ad53;border-radius:18px;padding:14px 20px;font-size:19px;font-weight:bold;background:#174c38;color:white;cursor:pointer}
+button{border:2px solid #d9ad53;border-radius:18px;padding:13px 18px;font-size:18px;font-weight:bold;background:#174c38;color:white;cursor:pointer}
 button.gold{background:#d9ad53;color:#171717}
 button.red{background:#8a2929}
 button:disabled{opacity:.4}
-input{width:125px;padding:13px;border-radius:12px;border:2px solid #d9ad53;font-size:20px;text-align:center}
+input{width:120px;padding:12px;border-radius:12px;border:2px solid #d9ad53;font-size:20px;text-align:center}
 #message{color:#f4d17c;font-size:18px;min-height:45px;margin:15px}
+.panel{background:#123b2d;border:2px solid #d9ad53;border-radius:20px;padding:15px;margin:15px auto;max-width:600px}
+.hidden{display:none}
+.result{font-size:20px;color:#f4d17c}
 .note{color:#b9c9c1;font-size:13px;margin-top:15px}
-@media(max-width:450px){
-.player{min-height:125px;padding:8px 3px}
-.player strong{font-size:21px}
-.score{font-size:14px}
-.back{font-size:20px}
-button{font-size:16px;padding:12px}
-.card{width:67px;height:103px}
-}
 </style>
 </head>
 <body>
@@ -62,7 +57,7 @@ button{font-size:16px;padding:12px}
   <div class="cards" id="myCards"></div>
 </div>
 
-<div id="message">اضغط توزيع الأوراق لبدء الجولة</div>
+<div id="message">وزع الأوراق لبدء الجولة</div>
 
 <div class="controls">
   <button class="gold" onclick="deal()">توزيع الأوراق</button>
@@ -70,71 +65,64 @@ button{font-size:16px;padding:12px}
   <button class="red" onclick="resetGame()">إعادة اللعبة</button>
 </div>
 
-<div class="section">
-  <h3>المزايدة</h3>
-  <div>دور اللاعب: <strong id="turnName">1</strong></div>
-  <div class="controls">
+<div class="section panel">
+  <h3 id="stageTitle">المزايدة</h3>
+  <div id="turnName">دور اللاعب: 1</div>
+  <div class="controls" id="auctionControls">
     <input id="bidAmount" type="number" min="5" step="5" placeholder="المبلغ">
-    <button class="gold" id="bidBtn" onclick="makeBid()">اعتماد المزايدة</button>
+    <button class="gold" onclick="makeBid()">اعتماد المزايدة</button>
     <button onclick="goAllIn()">سوقي</button>
     <button class="red" onclick="withdraw()">انسحاب</button>
   </div>
+  <div id="stageControls"></div>
+</div>
+
+<div class="section panel hidden" id="resultPanel">
+  <h3>نتيجة المقارنة</h3>
+  <div id="resultText" class="result"></div>
+  <div id="revealedHands"></div>
 </div>
 
 <div class="note">
-الفريق الأول: اللاعبون 1 و3 و5 — الفريق الثاني: اللاعبون 2 و4 و6
+الفريق الأول: 1 و3 و5 — الفريق الثاني: 2 و4 و6
 </div>
 
 <script>
-const players = Array.from({length:6},(_,i)=>({
-  name:"اللاعب "+(i+1),
-  score:100,
-  hand:[]
+const players=Array.from({length:6},(_,i)=>({
+  name:"اللاعب "+(i+1),score:100,hand:[]
 }));
 
-let round=1;
-let starter=0;
-let turn=0;
-let actions=0;
-let highestBid=0;
-let highestBidder=-1;
-let dealt=false;
-let finished=false;
+let round=1,starter=0,turn=0,actions=0;
+let highestBid=0,highestBidder=-1;
+let dealt=false,finished=false;
 let acted=Array(6).fill(false);
+let stage="auction";
+let participants=[];
+let invited=[];
+let inviteIndex=0;
 
 function makeDeck(){
+  const deck=[];
+  const suits=["♠","♥","♦","♣"];
   const ranks=[
-    {name:"A",symbol:"♠",value:5},
-    {name:"A",symbol:"♥",value:5},
-    {name:"A",symbol:"♦",value:5},
-    {name:"A",symbol:"♣",value:5},
-    {name:"A",symbol:"♠",value:5},
-    {name:"K",symbol:"♥",value:4},
-    {name:"K",symbol:"♦",value:4},
-    {name:"K",symbol:"♣",value:4},
-    {name:"K",symbol:"♠",value:4},
-    {name:"K",symbol:"♥",value:4},
-    {name:"Q",symbol:"♦",value:3},
-    {name:"Q",symbol:"♣",value:3},
-    {name:"Q",symbol:"♠",value:3},
-    {name:"Q",symbol:"♥",value:3},
-    {name:"Q",symbol:"♦",value:3},
-    {name:"J",symbol:"♣",value:2},
-    {name:"J",symbol:"♠",value:2},
-    {name:"J",symbol:"♥",value:2},
-    {name:"J",symbol:"♦",value:2},
-    {name:"J",symbol:"♣",value:2},
-    {name:"10",symbol:"♠",value:1},
-    {name:"10",symbol:"♥",value:1},
-    {name:"10",symbol:"♦",value:1},
-    {name:"10",symbol:"♣",value:1}
+    ["A",5],["K",4],["Q",3],["J",2],["10",1]
   ];
-  return ranks.sort(()=>Math.random()-.5);
+  ranks.forEach(([name,value])=>{
+    const count=name==="10"?4:5;
+    for(let i=0;i<count;i++){
+      deck.push({
+        name,value,
+        symbol:suits[i%4]
+      });
+    }
+  });
+  return deck.sort(()=>Math.random()-.5);
 }
 
 function deal(){
   const deck=makeDeck();
   players.forEach((p,i)=>p.hand=deck.slice(i*4,i*4+4));
+
   starter=(round-1)%6;
   turn=starter;
   actions=0;
@@ -143,6 +131,10 @@ function deal(){
   acted=Array(6).fill(false);
   dealt=true;
   finished=false;
+  stage="auction";
+  participants=[];
+  invited=[];
+  document.getElementById("resultPanel").classList.add("hidden");
   say("بدأت الجولة "+round+" من اللاعب "+(starter+1));
   update();
 }
@@ -150,93 +142,95 @@ function deal(){
 function update(){
   const area=document.getElementById("players");
   area.innerHTML="";
+
   players.forEach((p,i)=>{
     const div=document.createElement("div");
     div.className="player "+(i%2===0?"odd":"")+
-      (dealt&&!finished&&turn===i?" active":"");
-    div.innerHTML=
-      "<strong>"+(i+1)+"</strong>"+
+      ((stage==="auction"&&!finished&&turn===i)||
+       (stage==="consult"&&invited[inviteIndex]===i)||
+       participants.includes(i)?" active":"");
+
+    let status="";
+    if(stage==="auction"&&acted[i])status="أنهى دوره";
+    if(stage==="consult"&&participants.includes(i))status="يداقش";
+    if(stage==="consult"&&invited.includes(i)&&!participants.includes(i))status="لم يشارك";
+
+    div.innerHTML="<strong>"+(i+1)+"</strong>"+
       "<div>"+p.name+"</div>"+
       '<div class="score">'+p.score+" نقطة</div>"+
       '<div class="back">'+(p.hand.length?"▧ ▧ ▧ ▧":"—")+"</div>"+
-      "<small>"+(acted[i]?"أنهى دوره":"")+"</small>";
+      "<small>"+status+"</small>";
     area.appendChild(div);
   });
 
   document.getElementById("pot").textContent=highestBid;
+  document.getElementById("stageTitle").textContent=
+    stage==="auction"?"المزايدة":
+    stage==="consult"?"اختيار المشاركين":
+    stage==="compare"?"مقارنة الأوراق":"انتهت الجولة";
+
   document.getElementById("turnName").textContent=
-    finished?"انتهت المزايدة":(turn+1);
+    stage==="auction"?"دور اللاعب: "+(turn+1):
+    stage==="consult"?"مرحلة الدقش":
+    stage==="compare"?"تم كشف الأوراق":"انتهت الجولة";
 
-  const cards=document.getElementById("myCards");
-  cards.innerHTML="";
-  if(dealt){
-    players[turn].hand.forEach(c=>{
-      const el=document.createElement("div");
-      el.className="card "+("♥♦".includes(c.symbol)?"red":"");
-      el.innerHTML=c.name+"<small>"+c.symbol+"</small>";
-      cards.appendChild(el);
-    });
-  }
-
-  document.getElementById("bidBtn").disabled=!dealt||finished;
+  document.getElementById("auctionControls").classList.toggle("hidden",stage!=="auction");
+  renderCards();
 }
 
-function say(text){
-  document.getElementById("message").textContent=text;
+function renderCards(){
+  const cards=document.getElementById("myCards");
+  cards.innerHTML="";
+  if(!dealt)return;
+
+  let who=stage==="auction"?turn:
+    stage==="consult"?invited[inviteIndex]:-1;
+
+  if(who<0||who===undefined)return;
+
+  players[who].hand.forEach(c=>{
+    const el=document.createElement("div");
+    el.className="card "+("♥♦".includes(c.symbol)?"red":"");
+    el.innerHTML=c.name+"<small>"+c.symbol+"</small>";
+    cards.appendChild(el);
+  });
+}
+
+function say(t){
+  document.getElementById("message").textContent=t;
 }
 
 function makeBid(){
-  if(!dealt||finished)return;
-  const input=document.getElementById("bidAmount");
-  const amount=Number(input.value);
+  if(stage!=="auction"||finished)return;
+  const amount=Number(document.getElementById("bidAmount").value);
 
-  if(acted[turn]){
-    say("هذا اللاعب أنهى دوره بالفعل");
-    return;
-  }
-  if(!Number.isInteger(amount)||amount<5||amount%5!==0){
-    say("أدخل مبلغاً يبدأ من 5 ويكون من مضاعفات 5");
-    return;
-  }
-  if(amount<=highestBid){
-    say("يجب أن تكون المزايدة أعلى من "+highestBid);
-    return;
-  }
-  if(amount>players[turn].score){
-    say("المبلغ أكبر من رصيد اللاعب");
-    return;
-  }
+  if(acted[turn])return say("هذا اللاعب أنهى دوره");
+  if(!Number.isInteger(amount)||amount<5||amount%5!==0)
+    return say("المزايدة تبدأ من 5 وتكون بالخمسات");
+  if(amount<=highestBid)return say("يجب أن تكون أعلى من "+highestBid);
+  if(amount>players[turn].score)return say("المبلغ أكبر من رصيد اللاعب");
 
   highestBid=amount;
   highestBidder=turn;
   acted[turn]=true;
-  input.value="";
-  say("اللاعب "+(turn+1)+" زايد بمبلغ "+amount);
+  document.getElementById("bidAmount").value="";
+  say("اللاعب "+(turn+1)+" زايد "+amount);
   advance();
 }
 
 function withdraw(){
-  if(!dealt||finished)return;
-  if(acted[turn])return;
+  if(stage!=="auction"||finished)return;
   acted[turn]=true;
-  say("اللاعب "+(turn+1)+" انسحب من المزايدة");
+  say("اللاعب "+(turn+1)+" انسحب");
   advance();
 }
 
 function goAllIn(){
-  if(!dealt||finished)return;
-  if(acted[turn])return;
-
+  if(stage!=="auction"||finished)return;
   const amount=players[turn].score;
-  if(amount<=highestBid){
-    say("رصيد اللاعب لا يسمح بمزايدة أعلى من السوق. نحتاج تطبيق قاعدة سوقي الخاصة بهذه الحالة لاحقاً.");
-    return;
-  }
-  if(amount<5){
-    say("لا يوجد رصيد كافٍ للمزايدة");
-    return;
-  }
-
+  if(amount<=highestBid)
+    return say("رصيد اللاعب لا يسمح بمزايدة أعلى من السوق حالياً");
+  if(amount<5)return say("لا يوجد رصيد كافٍ");
   highestBid=amount;
   highestBidder=turn;
   acted[turn]=true;
@@ -246,32 +240,180 @@ function goAllIn(){
 
 function advance(){
   actions++;
-  if(actions>=6){
-    finished=true;
-    say(highestBidder===-1
-      ?"انتهت المزايدة دون مزايد"
-      :"انتهت المزايدة. صاحب السوق اللاعب "+
-       (highestBidder+1)+" بمبلغ "+highestBid);
+  if(actions>=6)return endAuction();
+
+  turn=(starter+actions)%6;
+  say("الآن دور اللاعب "+(turn+1));
+  update();
+}
+
+function endAuction(){
+  finished=true;
+  if(highestBidder===-1){
+    stage="done";
+    say("انتهت المزايدة دون مزايد");
     update();
     return;
   }
 
-  turn=(starter+actions)%6;
-  while(acted[turn]&&actions<6){
-    actions++;
-    if(actions>=6)break;
-    turn=(starter+actions)%6;
+  say("صاحب السوق اللاعب "+(highestBidder+1)+
+      " بمبلغ "+highestBid+". تبدأ مرحلة الدقش.");
+  beginDqsh();
+}
+
+function teamOf(i){
+  return i%2;
+}
+
+function beginDqsh(){
+  stage="consult";
+  participants=[highestBidder];
+  invited=[];
+
+  const ownerTeam=teamOf(highestBidder);
+
+  if(ownerTeam===0||ownerTeam===1){
+    // زميلا صاحب السوق
+    for(let i=0;i<6;i++){
+      if(i!==highestBidder&&teamOf(i)===ownerTeam)
+        invited.push(i);
+    }
   }
 
-  if(actions>=6){
-    finished=true;
-    say(highestBidder===-1
-      ?"انتهت المزايدة دون مزايد"
-      :"انتهت المزايدة. صاحب السوق اللاعب "+
-       (highestBidder+1)+" بمبلغ "+highestBid);
-  }else{
-    say("الآن دور اللاعب "+(turn+1));
+  // إذا كان صاحب السوق مع فريقه، يستشير زميليه
+  // أما الفريق المقابل فيشارك إجبارياً
+  const opponentTeam=1-ownerTeam;
+  for(let i=0;i<6;i++){
+    if(teamOf(i)===opponentTeam)
+      participants.push(i);
   }
+
+  inviteIndex=0;
+  say("صاحب السوق اللاعب "+(highestBidder+1)+" يداقش إجبارياً.");
+  showInvitation();
+}
+
+function showInvitation(){
+  const controls=document.getElementById("stageControls");
+  controls.innerHTML="";
+
+  if(inviteIndex>=invited.length){
+    controls.innerHTML='<button class="gold" onclick="compareHands()">انتهت القرارات - قارن الأوراق</button>';
+    say("انتهت طلبات المشاركة. اضغط مقارنة الأوراق.");
+    update();
+    return;
+  }
+
+  const player=invited[inviteIndex];
+  say("طلب مشاركة للاعب "+(player+1)+
+      ". اختر هل يداقش مع صاحب السوق؟");
+
+  controls.innerHTML=
+    '<div>هل اللاعب '+(player+1)+' يداقش؟</div>'+
+    '<div class="controls">'+
+    '<button class="gold" onclick="answerInvite(true)">نعم</button>'+
+    '<button class="red" onclick="answerInvite(false)">لا</button>'+
+    '</div>';
+
+  update();
+}
+
+function answerInvite(yes){
+  const player=invited[inviteIndex];
+
+  if(yes){
+    participants.push(player);
+    say("اللاعب "+(player+1)+" وافق على الدقش.");
+  }else{
+    say("اللاعب "+(player+1)+" رفض المشاركة.");
+  }
+
+  inviteIndex++;
+  showInvitation();
+}
+
+function evaluateHand(hand){
+  const counts={};
+  hand.forEach(c=>counts[c.value]=(counts[c.value]||0)+1);
+
+  const groups=Object.entries(counts)
+    .map(([value,count])=>({value:Number(value),count}))
+    .sort((a,b)=>b.value-a.value);
+
+  const four=groups.find(g=>g.count===4);
+  if(four)return {category:5,rank:four.value,name:"أربع ورقات متطابقة"};
+
+  const triple=groups.find(g=>g.count===3);
+  if(triple)return {category:4,rank:triple.value,name:"ثلاثية"};
+
+  const pairs=groups.filter(g=>g.count===2).sort((a,b)=>b.value-a.value);
+  if(pairs.length===2)
+    return {category:3,rank:pairs[0].value,second:pairs[1].value,name:"زوجان"};
+
+  if(pairs.length===1)
+    return {category:2,rank:pairs[0].value,name:"زوج"};
+
+  return {category:0,rank:0,name:"تركيبة غير محددة في القواعد الحالية"};
+}
+
+function compareHands(){
+  stage="compare";
+  const results=participants.map(i=>({
+    player:i,
+    hand:players[i].hand,
+    score:evaluateHand(players[i].hand)
+  }));
+
+  const supported=results.filter(r=>r.score.category>0);
+
+  const panel=document.getElementById("resultPanel");
+  panel.classList.remove("hidden");
+
+  let html="";
+  results.forEach(r=>{
+    html+="<div class='panel'><b>اللاعب "+(r.player+1)+
+      "</b> — "+r.score.name+"<div class='cards'>";
+
+    r.hand.forEach(c=>{
+      html+='<div class="card '+("♥♦".includes(c.symbol)?"red":"")+'">'+
+        c.name+"<small>"+c.symbol+"</small></div>";
+    });
+    html+="</div></div>";
+  });
+
+  document.getElementById("revealedHands").innerHTML=html;
+
+  if(supported.length===0){
+    document.getElementById("resultText").textContent=
+      "لا يمكن تحديد الفائز بهذه التركيبات وفق القواعد المثبتة حتى الآن.";
+    say("تم كشف أوراق المشاركين. نحتاج تحديد قاعدة الأوراق غير المتطابقة.");
+    update();
+    return;
+  }
+
+  supported.sort((a,b)=>
+    b.score.category-a.score.category||
+    b.score.rank-a.score.rank||
+    (b.score.second||0)-(a.score.second||0)
+  );
+
+  const best=supported[0];
+  const tied=supported.filter(r=>
+    r.score.category===best.score.category&&
+    r.score.rank===best.score.rank&&
+    (r.score.second||0)===(best.score.second||0)
+  );
+
+  if(tied.length>1){
+    document.getElementById("resultText").textContent=
+      "تعادل بين اللاعبين: "+tied.map(r=>r.player+1).join(" و");
+    say("انتهت المقارنة بالتعادل.");
+  }else{
+    document.getElementById("resultText").textContent=
+      "الفائز: اللاعب "+(best.player+1)+" — "+best.score.name;
+    say("الفائز هو اللاعب "+(best.player+1));
+  }
+
   update();
 }
 

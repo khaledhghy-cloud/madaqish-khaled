@@ -3,624 +3,213 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>مداقش خالد</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box}
-body{margin:0;padding:12px;background:#09291f;color:white;font-family:Arial;text-align:center}
-h1{color:#f2cc70}
-.table{background:radial-gradient(#126044,#073526);border:7px solid #805633;border-radius:28px;padding:12px;max-width:850px;margin:auto}
-.players{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-.player{background:#102d25;border:3px solid #398bd0;border-radius:16px;padding:10px 3px;min-height:115px}
-.player.odd{border-color:#c64d52}
-.player.active{outline:4px solid #e9c15f}
-.player.out{opacity:.35;border-color:#777}
-.score{color:#f3ce70;font-weight:bold;margin:6px}
-.status{font-size:12px;min-height:17px;color:#ddd}
-.market{margin:18px auto;background:#111;border:4px solid #d9ad53;border-radius:22px;padding:12px;width:200px}
-.amount{font-size:40px;color:#f3ce70;font-weight:bold}
-.panel{background:#123b2d;border:2px solid #d9ad53;border-radius:17px;padding:13px;margin:15px auto;max-width:650px}
-.controls{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;margin:12px auto}
-button{border:2px solid #d9ad53;border-radius:13px;padding:12px 15px;font-size:16px;font-weight:bold;background:#174c38;color:white}
-button.gold{background:#d9ad53;color:#171717}
-button.red{background:#8a2929}
-button:disabled{opacity:.4}
-input{width:105px;padding:11px;border-radius:9px;font-size:18px;text-align:center}
-#message{color:#f4d17c;min-height:40px;margin:12px}
-.cards{display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
-.card{background:white;color:#171717;border-radius:9px;width:60px;height:88px;padding:7px;text-align:left;font-size:22px;font-weight:bold}
-.card.red{color:#c62828}
-.card small{display:block;margin-top:5px;font-size:20px}
-.log{text-align:right;max-height:150px;overflow:auto;font-size:14px;line-height:1.8}
-.hidden{display:none!important}
-.note{font-size:12px;color:#d8c58d;margin:12px}
+body{margin:0;padding:18px;background:#09291f;color:#fff;font-family:Arial,sans-serif}
+h1{text-align:center;color:#f2cc70}
+.panel{background:#123b2d;border:1px solid #d9ad53;border-radius:15px;padding:16px;margin:14px 0}
+input,button{width:100%;padding:14px;margin:6px 0;border-radius:10px;font-size:17px}
+input{background:#fff;color:#111;border:0}
+button{background:#d9ad53;color:#171717;border:0;font-weight:bold}
+button:disabled{opacity:.5}
+.players{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.player{background:#102d25;border:1px solid #398b70;border-radius:10px;padding:12px}
+.small{color:#b9d4c8;font-size:13px}
+#message{padding:10px;color:#ffe08a;white-space:pre-wrap}
+#cards{font-size:25px;text-align:center;letter-spacing:5px}
 </style>
 </head>
 <body>
+<h1>♠ مداقش خالد ♠</h1>
 
-<h1>مداقش خالد</h1>
-<div class="note">الفريق الأول: 1 و3 و5 — الفريق الثاني: 2 و4 و6</div>
-
-<div class="table">
-  <div class="players" id="players"></div>
-  <div class="market">
-    <div>أعلى مزايدة</div>
-    <div class="amount" id="pot">0</div>
-    <div>نقطة</div>
-  </div>
+<div class="panel" id="loginPanel">
+<h3>دخول اللعبة</h3>
+<input id="name" placeholder="اكتب اسمك">
+<button onclick="start()">دخول</button>
 </div>
 
-<div class="panel">
-  <h3 id="stageTitle">اللعبة</h3>
-  <div id="turnName"></div>
-  <div id="message">اضغط توزيع الأوراق لبدء الجولة</div>
-
-  <div id="auctionControls" class="controls hidden">
-    <input id="bidAmount" type="number" min="5" step="5" placeholder="المبلغ">
-    <button class="gold" onclick="makeBid()">اعتماد المزايدة</button>
-    <button onclick="goAllIn()">سوقي</button>
-    <button class="red" onclick="withdraw()">انسحاب</button>
-  </div>
-  <div id="stageControls"></div>
+<div class="panel hidden" id="homePanel">
+<h3>الغرف</h3>
+<input id="roomName" placeholder="اسم الغرفة">
+<button onclick="createRoom()">إنشاء غرفة جديدة</button>
+<hr>
+<input id="roomCode" placeholder="أدخل رمز الغرفة">
+<button onclick="joinRoom()">دخول غرفة موجودة</button>
 </div>
 
-<div class="panel">
-  <h3>أوراق اللاعب الحالي</h3>
-  <div class="cards" id="myCards"></div>
-  <div class="note">نسخة تجريبية على جهاز واحد. لا تعرض أوراق زملائك أثناء طلب الدقش.</div>
-</div>
-
-<div class="panel">
-  <h3>سجل اللعبة</h3>
-  <div class="log" id="history">لا يوجد سجل</div>
-</div>
-
-<div class="controls">
-  <button class="gold" onclick="deal()">توزيع الأوراق</button>
-  <button onclick="nextRound()">الجولة التالية</button>
-  <button class="red" onclick="resetGame()">إعادة المباراة</button>
-</div>
-
-<div class="panel hidden" id="resultPanel">
-  <h3>نتيجة المداقشة</h3>
-  <div id="resultText"></div>
-  <div id="revealedHands"></div>
-</div>
-
-<div class="panel hidden" id="sharePanel">
-  <h3>توزيع مكسب السوق</h3>
-  <div id="shareInfo"></div>
-  <div id="shareInputs"></div>
-  <button class="gold" onclick="distributeMarket()">اعتماد التوزيع</button>
+<div class="panel hidden" id="gamePanel">
+<h2 id="roomTitle">الغرفة</h2>
+<p>رمز الغرفة:</p>
+<h1 id="code"></h1>
+<p id="roomStatus">بانتظار اللاعبين</p>
+<h3>اللاعبون</h3>
+<div class="players" id="players"></div>
+<p class="small">كل لاعب يرى أوراقه الخاصة فقط.</p>
+<h3>أوراقك</h3>
+<div id="cards">بانتظار بدء اللعب</div>
+<div id="message"></div>
+<button onclick="leaveRoom()">مغادرة الغرفة</button>
 </div>
 
 <script>
-const players=Array.from({length:6},(_,i)=>({
-  name:"اللاعب "+(i+1),
-  score:100,
-  hand:[],
-  eliminated:false,
-  secondChance:false
-}));
+const SUPABASE_URL = "https://msyyzlwazqsglvgkffyr.supabase.co";
+const SUPABASE_KEY = "ضع_مفتاح_sb_publishable_هنا";
 
-let round=1,starter=0,turn=0,actions=0;
-let highestBid=0,highestBidder=-1;
-let bids=[],acted=[],withdrawn=[],allIn=[];
-let participants=[],invited=[],inviteIndex=0;
-let history=[],stage="ready",matchOver=false;
-let shareDone=false;
+const db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-function teamOf(i){return i%2;}
+let user=null, playerName="", room=null, myPlayer=null;
+let roomChannel=null, playersChannel=null;
 
-function say(t){
-  document.getElementById("message").textContent=t;
+const $ = id => document.getElementById(id);
+function show(id){$(id).classList.remove("hidden")}
+function hide(id){$(id).classList.add("hidden")}
+function say(t){$("message").textContent=t}
+
+async function start(){
+  playerName=$("name").value.trim();
+  if(!playerName)return alert("اكتب اسمك أولاً");
+  say("جاري تسجيل الدخول...");
+  const {data,error}=await db.auth.signInAnonymously();
+  if(error){alert("تعذر الدخول: "+error.message);return}
+  user=data.user;
+  hide("loginPanel");
+  show("homePanel");
+  say("");
 }
 
-function log(t){
-  history.unshift(t);
-  document.getElementById("history").innerHTML=
-    history.map(x=>"<div>"+x+"</div>").join("");
+function makeCode(){
+  return Math.random().toString(36).substring(2,7).toUpperCase();
 }
 
-function makeDeck(){
-  const deck=[];
-  const suits=["♠","♥","♦","♣"];
-  const ranks=[["A",5,5],["K",4,5],["Q",3,5],["J",2,5],["10",1,4]];
-  ranks.forEach(([name,value,count])=>{
-    for(let i=0;i<count;i++)
-      deck.push({name,value,symbol:suits[i%4]});
-  });
-  return deck.sort(()=>Math.random()-.5);
+async function createRoom(){
+  if(!user)return;
+  const code=makeCode();
+  const {data,error}=await db.from("mdk_rooms").insert({
+    room_code:code,
+    room_name:$("roomName").value.trim()||"مداقش خالد",
+    host_id:user.id,
+    status:"waiting",
+    game_state:{round:1,started:false}
+  }).select().single();
+
+  if(error){alert("تعذر إنشاء الغرفة: "+error.message);return}
+  room=data;
+  const joined=await addPlayer();
+  if(joined)await openRoom();
 }
 
-function deal(){
-  if(matchOver){
-    say("انتهت المباراة. اضغط إعادة المباراة.");
-    return;
-  }
-  if(players.filter(p=>!p.eliminated).length<2){
-    say("لا يوجد عدد كافٍ من اللاعبين.");
-    return;
-  }
+async function joinRoom(){
+  if(!user)return;
+  const code=$("roomCode").value.trim().toUpperCase();
+  if(!code)return alert("اكتب رمز الغرفة");
+  const {data,error}=await db.from("mdk_rooms")
+    .select("*").eq("room_code",code).maybeSingle();
 
-  const deck=makeDeck();
-  players.forEach((p,i)=>p.hand=deck.slice(i*4,i*4+4));
-
-  starter=(round-1)%6;
-  turn=starter;
-  actions=0;
-  highestBid=0;
-  highestBidder=-1;
-  bids=Array(6).fill(0);
-  acted=Array(6).fill(false);
-  withdrawn=Array(6).fill(false);
-  allIn=Array(6).fill(false);
-  participants=[];
-  invited=[];
-  inviteIndex=0;
-  history=[];
-  shareDone=false;
-  stage="auction";
-
-  document.getElementById("resultPanel").classList.add("hidden");
-  document.getElementById("sharePanel").classList.add("hidden");
-  document.getElementById("stageControls").innerHTML="";
-  log("بدأت الجولة "+round);
-
-  skipEliminated();
-  if(stage==="auction"){
-    say("بدأت المزايدة من اللاعب "+(turn+1));
-    update();
-  }
+  if(error||!data){alert("الغرفة غير موجودة أو لا يمكن الوصول إليها");return}
+  if(data.status!=="waiting"){alert("اللعبة بدأت أو الغرفة مغلقة");return}
+  room=data;
+  const joined=await addPlayer();
+  if(joined)await openRoom();
 }
 
-function skipEliminated(){
-  while(actions<6 && players[turn].eliminated){
-    actions++;
-    turn=(starter+actions)%6;
-  }
-  if(actions>=6)endAuction();
+async function addPlayer(){
+  const {data:existing}=await db.from("room_players")
+    .select("*").eq("room_id",room.id).eq("user_id",user.id).maybeSingle();
+
+  if(existing){myPlayer=existing;return true}
+
+  const {data:all,error:readError}=await db.from("room_players")
+    .select("player_number").eq("room_id",room.id);
+
+  if(readError){alert("تعذر قراءة اللاعبين: "+readError.message);return false}
+  if(all.length>=6){alert("الغرفة مكتملة، الحد 6 لاعبين");return false}
+
+  const used=all.map(p=>p.player_number);
+  let number=[1,2,3,4,5,6].find(n=>!used.includes(n));
+
+  const {data,error}=await db.from("room_players").insert({
+    room_id:room.id,
+    user_id:user.id,
+    player_number:number,
+    player_name:playerName,
+    team_number:number%2===1?1:2,
+    score:100,
+    is_connected:true
+  }).select().single();
+
+  if(error){alert("تعذر الانضمام: "+error.message);return false}
+  myPlayer=data;
+  return true;
 }
 
-function update(){
-  const area=document.getElementById("players");
-  area.innerHTML="";
+async function openRoom(){
+  hide("homePanel");
+  show("gamePanel");
+  $("roomTitle").textContent=room.room_name;
+  $("code").textContent=room.room_code;
+  await refreshRoom();
+  subscribeRoom();
+}
 
-  players.forEach((p,i)=>{
+async function refreshRoom(){
+  const {data,error}=await db.from("room_players")
+    .select("player_number,player_name,team_number,score,is_connected")
+    .eq("room_id",room.id).order("player_number");
+
+  if(error){say("تعذر تحديث اللاعبين: "+error.message);return}
+  $("players").innerHTML="";
+  data.forEach(p=>{
     const div=document.createElement("div");
-    const active=(stage==="auction"&&turn===i)||
-      (stage==="consult"&&invited[inviteIndex]===i);
-
-    div.className="player "+(i%2===0?"odd":"")+
-      (active?" active":"")+(p.eliminated?" out":"");
-
-    let status=p.eliminated?"خارج اللعبة":
-      withdrawn[i]?"منسحب":
-      allIn[i]?"سوقي":
-      acted[i]&&bids[i]>0?"زايد "+bids[i]:
-      participants.includes(i)?"يداقش":"";
-
-    div.innerHTML="<strong>"+(i+1)+"</strong>"+
-      "<div>"+p.name+"</div>"+
-      '<div class="score">'+p.score+" نقطة</div>"+
-      '<div class="status">'+status+"</div>";
-    area.appendChild(div);
+    div.className="player";
+    div.innerHTML=
+      "<b>اللاعب "+p.player_number+"</b><br>"+
+      p.player_name+"<br>"+
+      "<span class='small'>الفريق "+p.team_number+
+      " | النقاط: "+p.score+
+      " | "+(p.is_connected?"متصل":"غير متصل")+"</span>";
+    $("players").appendChild(div);
   });
 
-  document.getElementById("pot").textContent=highestBid;
-  document.getElementById("stageTitle").textContent=
-    stage==="auction"?"المزايدة":
-    stage==="consult"?"طلبات الدقش":
-    stage==="compare"?"المقارنة":"اللعبة";
+  $("roomStatus").textContent=data.length+" من 6 لاعبين";
+}
 
-  document.getElementById("turnName").textContent=
-    stage==="auction"?"دور اللاعب "+(turn+1):
-    stage==="consult"?"طلب مشاركة":"";
+function subscribeRoom(){
+  if(roomChannel)db.removeChannel(roomChannel);
+  roomChannel=db.channel("room-"+room.id)
+    .on("postgres_changes",{
+      event:"*",schema:"public",table:"room_players",
+      filter:"room_id=eq."+room.id
+    },()=>refreshRoom())
+    .on("postgres_changes",{
+      event:"UPDATE",schema:"public",table:"mdk_rooms",
+      filter:"id=eq."+room.id
+    },payload=>{
+      room=payload.new;
+      $("roomStatus").textContent="تم تحديث حالة الغرفة";
+    }).subscribe();
+}
 
-  document.getElementById("auctionControls").classList.toggle(
-    "hidden",stage!=="auction"
-  );
-
-  const box=document.getElementById("myCards");
-  box.innerHTML="";
-  if(stage==="auction"&&!players[turn].eliminated){
-    players[turn].hand.forEach(c=>{
-      const el=document.createElement("div");
-      el.className="card "+("♥♦".includes(c.symbol)?"red":"");
-      el.innerHTML=c.name+"<small>"+c.symbol+"</small>";
-      box.appendChild(el);
-    });
+async function leaveRoom(){
+  if(myPlayer){
+    await db.from("room_players")
+      .update({is_connected:false})
+      .eq("room_id",room.id).eq("user_id",user.id);
   }
+  if(roomChannel)await db.removeChannel(roomChannel);
+  room=null;myPlayer=null;
+  hide("gamePanel");show("homePanel");
 }
 
-function advance(){
-  actions++;
-  if(actions>=6){
-    endAuction();
-    return;
-  }
-  turn=(starter+actions)%6;
-  skipEliminated();
-
-  if(stage==="auction"){
-    say("أعلى مزايدة "+highestBid+
-      ". دور اللاعب "+(turn+1));
-    update();
-  }
-}
-
-function makeBid(){
-  if(stage!=="auction"||acted[turn]||players[turn].eliminated)return;
-
-  const amount=Number(document.getElementById("bidAmount").value);
-  if(!Number.isInteger(amount)||amount<5||amount%5!==0)
-    return say("المزايدة تبدأ من 5 وتكون بالخمسات.");
-  if(amount<=highestBid)
-    return say("يجب أن تتجاوز أعلى مزايدة وهي "+highestBid+".");
-  if(amount>players[turn].score)
-    return say("رصيدك لا يكفي. استخدم سوقي.");
-
-  bids[turn]=amount;
-  acted[turn]=true;
-  highestBid=amount;
-  highestBidder=turn;
-  log("اللاعب "+(turn+1)+" زايد "+amount);
-  document.getElementById("bidAmount").value="";
-  advance();
-}
-
-function goAllIn(){
-  if(stage!=="auction"||acted[turn]||players[turn].eliminated)return;
-
-  const amount=players[turn].score;
-  acted[turn]=true;
-  allIn[turn]=true;
-  bids[turn]=amount;
-
-  if(amount>highestBid){
-    highestBid=amount;
-    highestBidder=turn;
-  }
-
-  log("اللاعب "+(turn+1)+" قال سوقي برصيد "+amount);
-  advance();
-}
-
-function withdraw(){
-  if(stage!=="auction"||acted[turn]||players[turn].eliminated)return;
-  acted[turn]=true;
-  withdrawn[turn]=true;
-  bids[turn]=0;
-  log("اللاعب "+(turn+1)+" انسحب");
-  advance();
-}
-
-function endAuction(){
-  if(highestBidder===-1){
-    stage="done";
-    say("انتهت المزايدة دون مزايد.");
-    document.getElementById("stageControls").innerHTML=
-      '<button class="gold" onclick="nextRound()">الجولة التالية</button>';
-    update();
-    return;
-  }
-
-  stage="consult";
-  participants=[highestBidder];
-
-  const ownerTeam=teamOf(highestBidder);
-  const opponentTeam=1-ownerTeam;
-
-  // المنافسون الذين دخلوا المزايدة يشاركون.
-  for(let i=0;i<6;i++){
-    if(teamOf(i)===opponentTeam&&!withdrawn[i]&&
-      !players[i].eliminated&&(bids[i]>0||allIn[i])){
-      participants.push(i);
-    }
-  }
-
-  // صاحب السوق يستشير زملاءه الذين دخلوا المزايدة.
-  invited=[];
-  for(let i=0;i<6;i++){
-    if(teamOf(i)===ownerTeam&&i!==highestBidder&&
-      !withdrawn[i]&&!players[i].eliminated&&
-      (bids[i]>0||allIn[i])){
-      invited.push(i);
-    }
-  }
-
-  inviteIndex=0;
-  log("صاحب السوق اللاعب "+(highestBidder+1)+
-    " بمبلغ "+highestBid);
-  showInvitation();
-}
-
-function showInvitation(){
-  const controls=document.getElementById("stageControls");
-  controls.innerHTML="";
-
-  if(inviteIndex>=invited.length){
-    controls.innerHTML=
-      '<button class="gold" onclick="compareHands()">بدء المقارنة</button>';
-    say("انتهت طلبات المشاركة. ابدأ المقارنة.");
-    update();
-    return;
-  }
-
-  const p=invited[inviteIndex];
-  say("هل اللاعب "+(p+1)+" يوافق على الدقش؟");
-  controls.innerHTML=
-    '<div>طلب مشاركة للاعب '+(p+1)+'</div>'+
-    '<div class="controls">'+
-    '<button class="gold" onclick="answerInvite(true)">نعم</button>'+
-    '<button class="red" onclick="answerInvite(false)">لا</button>'+
-    '</div>';
-  update();
-}
-
-function answerInvite(yes){
-  const p=invited[inviteIndex];
-  if(yes){
-    participants.push(p);
-    log("اللاعب "+(p+1)+" وافق على الدقش");
-  }else{
-    log("اللاعب "+(p+1)+" لم يداقش");
-  }
-  inviteIndex++;
-  showInvitation();
-}
-
-function evaluateHand(hand){
-  const counts={};
-  hand.forEach(c=>counts[c.value]=(counts[c.value]||0)+1);
-  const groups=Object.entries(counts)
-    .map(([value,count])=>({value:Number(value),count}))
-    .sort((a,b)=>b.value-a.value);
-
-  const four=groups.find(g=>g.count===4);
-  if(four)return {category:5,rank:four.value,name:"أربع ورقات"};
-
-  const triple=groups.find(g=>g.count===3);
-  if(triple)return {category:4,rank:triple.value,name:"ثلاثية"};
-
-  const pairs=groups.filter(g=>g.count===2)
-    .sort((a,b)=>b.value-a.value);
-
-  if(pairs.length===2)
-    return {category:3,rank:pairs[0].value,
-      second:pairs[1].value,name:"زوجان"};
-
-  if(pairs.length===1)
-    return {category:2,rank:pairs[0].value,name:"زوج"};
-
-  return {category:1,rank:groups[0].value,name:"أعلى ورقة"};
-}
-
-function compareScore(a,b){
-  return b.category-a.category||
-    b.rank-a.rank||
-    (b.second||0)-(a.second||0);
-}
-
-function checkMatchEnd(){
-  const out=[0,0];
-  players.forEach((p,i)=>{if(p.eliminated)out[teamOf(i)]++;});
-
-  if(out[0]>=2||out[1]>=2){
-    matchOver=true;
-    stage="done";
-    const winner=out[0]>=2?2:1;
-    say("انتهت المباراة! الفريق "+winner+" فاز.");
-    document.getElementById("resultText").textContent=
-      "الفريق "+winner+" فاز بالمباراة.";
-    document.getElementById("stageControls").innerHTML=
-      '<button class="red" onclick="resetGame()">إعادة المباراة</button>';
-    document.getElementById("sharePanel").classList.add("hidden");
-    update();
-    return true;
-  }
-  return false;
-}
-
-function applyLoss(playerIndex,amount){
-  const p=players[playerIndex];
-  const old=p.score;
-  p.score=Math.max(0,p.score-amount);
-
-  if(old>0&&p.score===0){
-    if(p.secondChance){
-      p.eliminated=true;
-      log("اللاعب "+(playerIndex+1)+" خرج بعد خسارة فرصته الثانية");
-    }else{
-      p.secondChance=true;
-      log("اللاعب "+(playerIndex+1)+" وصل للصفر وله فرصة ثانية");
-    }
-  }
-}
-
-function settleWinner(winner){
-  const owner=highestBidder;
-
-  if(winner===owner){
-    // صاحب السوق يفوز بمبلغ السوق.
-    players[owner].score+=highestBid;
-
-    // المنافسون المشاركون يخسرون مبالغ دخولهم.
-    participants.forEach(i=>{
-      if(teamOf(i)!==teamOf(owner)){
-        applyLoss(i,bids[i]);
-      }
-    });
-  }else{
-    // صاحب السوق يخسر كامل مبلغ مزايدته.
-    applyLoss(owner,highestBid);
-
-    // بقية المشاركين يخسرون مبالغ دخولهم.
-    participants.forEach(i=>{
-      if(i!==owner&&i!==winner){
-        applyLoss(i,bids[i]);
-      }
-    });
-
-    // الفائز يحصل على مبلغ السوق كاملًا.
-    players[winner].score+=highestBid;
-  }
-}
-
-function settleTie(tied){
-  // كل لاعب ضمن أعلى مركزين متعادلين يسترد مبلغ دخوله.
-  const tiedSet=new Set(tied.map(x=>x.player));
-
-  participants.forEach(i=>{
-    if(tiedSet.has(i)){
-      log("اللاعب "+(i+1)+" تعادل واسترد "+bids[i]+" نقطة");
-    }else{
-      applyLoss(i,i===highestBidder?highestBid:bids[i]);
-      log("اللاعب "+(i+1)+" خسر مزايدته");
-    }
-  });
-}
-
-function compareHands(){
-  stage="compare";
-
-  const results=participants.map(i=>({
-    player:i,
-    score:evaluateHand(players[i].hand),
-    hand:players[i].hand
-  })).sort((a,b)=>compareScore(a.score,b.score));
-
-  const best=results[0];
-  const tied=results.filter(r=>compareScore(r.score,best.score)===0);
-
-  let html="";
-  results.forEach(r=>{
-    html+='<div class="panel"><b>اللاعب '+(r.player+1)+
-      '</b> — '+r.score.name+'<div class="cards">';
-    r.hand.forEach(c=>{
-      html+='<div class="card '+("♥♦".includes(c.symbol)?"red":"")+'">'+
-        c.name+'<small>'+c.symbol+'</small></div>';
-    });
-    html+='</div></div>';
-  });
-  document.getElementById("revealedHands").innerHTML=html;
-  document.getElementById("resultPanel").classList.remove("hidden");
-
-  if(tied.length>=2){
-    settleTie(tied);
-    document.getElementById("resultText").textContent=
-      "تعادل في أعلى نتيجة بين اللاعبين "+
-      tied.map(r=>r.player+1).join(" و")+
-      ". استرد المتعادلون مبالغ دخولهم، وخسر بقية المشاركين مبالغهم.";
-    say("تعادل في أعلى نتيجة. تم احتساب الخسائر والاسترداد.");
-  }else{
-    settleWinner(best.player);
-    document.getElementById("resultText").textContent=
-      "الفائز اللاعب "+(best.player+1)+
-      " — "+best.score.name+
-      " — مبلغ السوق "+highestBid+" نقطة";
-    say("الفائز اللاعب "+(best.player+1));
-  }
-
-  stage="done";
-  document.getElementById("stageControls").innerHTML=
-    '<button class="gold" onclick="nextRound()">الجولة التالية</button>';
-
-  update();
-
-  // شاشة التوزيع لا تظهر إلا إذا فاز صاحب السوق.
-  if(tied.length===1&&best.player===highestBidder){
-    showSharePanel();
-  }
-
-  checkMatchEnd();
-}
-
-function showSharePanel(){
-  const owner=highestBidder;
-
-  // المستحقون: زملاء صاحب السوق الذين زايدوا ولم يداقشوا.
-  const eligible=players.map((p,i)=>
-    i!==owner &&
-    teamOf(i)===teamOf(owner) &&
-    bids[i]>0 &&
-    !participants.includes(i) &&
-    !withdrawn[i] &&
-    !p.eliminated ? i : -1
-  ).filter(i=>i!==-1);
-
-  if(eligible.length===0)return;
-
-  document.getElementById("sharePanel").classList.remove("hidden");
-  document.getElementById("shareInfo").textContent=
-    "مبلغ السوق "+highestBid+
-    ". وزّع على زملائك الذين زايدوا ولم يداقشوا فقط. الباقي لك.";
-
-  let html="";
-  eligible.forEach(i=>{
-    html+='<div class="controls">حصة اللاعب '+(i+1)+
-      '<input type="number" id="share-'+i+
-      '" min="0" step="1" value="0"></div>';
-  });
-  document.getElementById("shareInputs").innerHTML=html;
-}
-
-function distributeMarket(){
-  if(shareDone)return say("تم اعتماد التوزيع مسبقًا.");
-
-  const owner=highestBidder;
-  const eligible=players.map((p,i)=>
-    i!==owner &&
-    teamOf(i)===teamOf(owner) &&
-    bids[i]>0 &&
-    !participants.includes(i) &&
-    !withdrawn[i] &&
-    !p.eliminated ? i : -1
-  ).filter(i=>i!==-1);
-
-  let total=0;
-  const amounts=[];
-
-  for(const i of eligible){
-    const value=Number(document.getElementById("share-"+i).value);
-    if(!Number.isInteger(value)||value<0)
-      return say("أدخل مبالغ صحيحة.");
-    amounts.push({player:i,amount:value});
-    total+=value;
-  }
-
-  if(total>highestBid)
-    return say("مجموع التوزيع أكبر من مبلغ السوق.");
-
-  players[owner].score-=total;
-  amounts.forEach(x=>players[x.player].score+=x.amount);
-
-  shareDone=true;
-  document.getElementById("sharePanel").classList.add("hidden");
-  log("وزع صاحب السوق "+total+" نقطة على زملائه المستحقين.");
-  say("تم اعتماد التوزيع. المتبقي لصاحب السوق "+(highestBid-total)+" نقطة.");
-  update();
-}
-
-function nextRound(){
-  if(matchOver)return;
-  round++;
-  deal();
-}
-
-function resetGame(){
-  round=1;
-  matchOver=false;
-  players.forEach(p=>{
-    p.score=100;
-    p.eliminated=false;
-    p.secondChance=false;
-    p.hand=[];
-  });
-  deal();
-}
-
-update();
+window.addEventListener("beforeunload",()=>{
+  if(roomChannel)db.removeChannel(roomChannel);
+});
 </script>
+
+<style>
+.hidden{display:none!important}
+</style>
 </body>
 </html>

@@ -1,163 +1,292 @@
 
-let round = 1;
-let hands = [];
-let turn = 0;
-let starter = 0;
-let actionsCount = 0;
-let highestBid = 0;
-let highestBidder = -1;
-let pot = 0;
-let dealt = false;
-let active = [];
-let passed = [];
-let marketPlayers = [];
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مداقش خالد</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#09291f;color:white;font-family:Arial,sans-serif;text-align:center;padding:12px}
+h1{color:#f2cc70;margin:12px}
+.subtitle{color:#d8c58d;margin-bottom:18px}
+.table{background:radial-gradient(#126044,#073526);border:9px solid #805633;border-radius:35px;padding:15px;margin:auto;max-width:850px}
+.players{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.player{border:4px solid #398bd0;border-radius:22px;padding:12px 5px;min-height:145px;background:#102d25}
+.player.odd{border-color:#c64d52}
+.player.active{outline:5px solid #e9c15f;transform:scale(1.02)}
+.player strong{font-size:25px}
+.score{color:#f3ce70;font-weight:bold;margin:8px}
+.back{font-size:25px;letter-spacing:-7px;color:#f4d8d0;margin:8px}
+.market{margin:25px auto 10px;background:#111;border:6px solid #d9ad53;border-radius:30px;padding:15px;width:220px}
+.market .amount{font-size:48px;color:#f3ce70;font-weight:bold}
+.section{margin:22px auto;max-width:850px}
+.cards{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.card{background:white;color:#171717;border-radius:13px;width:75px;height:112px;padding:8px;text-align:left;font-size:24px;font-weight:bold;box-shadow:0 4px 8px #0006}
+.card.red{color:#c62828}
+.card small{display:block;font-size:22px;margin-top:5px}
+.controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:15px auto}
+button{border:2px solid #d9ad53;border-radius:18px;padding:14px 20px;font-size:19px;font-weight:bold;background:#174c38;color:white;cursor:pointer}
+button.gold{background:#d9ad53;color:#171717}
+button.red{background:#8a2929}
+button:disabled{opacity:.4}
+input{width:125px;padding:13px;border-radius:12px;border:2px solid #d9ad53;font-size:20px;text-align:center}
+#message{color:#f4d17c;font-size:18px;min-height:45px;margin:15px}
+.note{color:#b9c9c1;font-size:13px;margin-top:15px}
+@media(max-width:450px){
+.player{min-height:125px;padding:8px 3px}
+.player strong{font-size:21px}
+.score{font-size:14px}
+.back{font-size:20px}
+button{font-size:16px;padding:12px}
+.card{width:67px;height:103px}
+}
+</style>
+</head>
+<body>
 
-function deal() {
-  let deck = makeDeck();
-  hands = [];
+<h1>مداقش خالد</h1>
+<div class="subtitle">لعبة الورق - ستة لاعبين</div>
 
-  for (let i = 0; i < 6; i++) {
-    hands.push(deck.slice(i * 4, i * 4 + 4));
-  }
+<div class="table">
+  <div class="players" id="players"></div>
+  <div class="market">
+    <div>السوق</div>
+    <div class="amount" id="pot">0</div>
+    <div>نقطة</div>
+  </div>
+</div>
 
-  starter = (round - 1) % 6;
-  turn = starter;
-  actionsCount = 0;
-  highestBid = 0;
-  highestBidder = -1;
-  pot = 0;
-  active = [];
-  passed = [];
-  marketPlayers = [];
-  dealt = true;
+<div class="section">
+  <h2>أوراق اللاعب الحالي</h2>
+  <div class="cards" id="myCards"></div>
+</div>
 
-  message("الجولة " + round +
-    " بدأت. المزايدة تبدأ من اللاعب " + (starter + 1));
+<div id="message">اضغط توزيع الأوراق لبدء الجولة</div>
 
+<div class="controls">
+  <button class="gold" onclick="deal()">توزيع الأوراق</button>
+  <button onclick="nextRound()">الجولة التالية</button>
+  <button class="red" onclick="resetGame()">إعادة اللعبة</button>
+</div>
+
+<div class="section">
+  <h3>المزايدة</h3>
+  <div>دور اللاعب: <strong id="turnName">1</strong></div>
+  <div class="controls">
+    <input id="bidAmount" type="number" min="5" step="5" placeholder="المبلغ">
+    <button class="gold" id="bidBtn" onclick="makeBid()">اعتماد المزايدة</button>
+    <button onclick="goAllIn()">سوقي</button>
+    <button class="red" onclick="withdraw()">انسحاب</button>
+  </div>
+</div>
+
+<div class="note">
+الفريق الأول: اللاعبون 1 و3 و5 — الفريق الثاني: اللاعبون 2 و4 و6
+</div>
+
+<script>
+const players = Array.from({length:6},(_,i)=>({
+  name:"اللاعب "+(i+1),
+  score:100,
+  hand:[]
+}));
+
+let round=1;
+let starter=0;
+let turn=0;
+let actions=0;
+let highestBid=0;
+let highestBidder=-1;
+let dealt=false;
+let finished=false;
+let acted=Array(6).fill(false);
+
+function makeDeck(){
+  const ranks=[
+    {name:"A",symbol:"♠",value:5},
+    {name:"A",symbol:"♥",value:5},
+    {name:"A",symbol:"♦",value:5},
+    {name:"A",symbol:"♣",value:5},
+    {name:"A",symbol:"♠",value:5},
+    {name:"K",symbol:"♥",value:4},
+    {name:"K",symbol:"♦",value:4},
+    {name:"K",symbol:"♣",value:4},
+    {name:"K",symbol:"♠",value:4},
+    {name:"K",symbol:"♥",value:4},
+    {name:"Q",symbol:"♦",value:3},
+    {name:"Q",symbol:"♣",value:3},
+    {name:"Q",symbol:"♠",value:3},
+    {name:"Q",symbol:"♥",value:3},
+    {name:"Q",symbol:"♦",value:3},
+    {name:"J",symbol:"♣",value:2},
+    {name:"J",symbol:"♠",value:2},
+    {name:"J",symbol:"♥",value:2},
+    {name:"J",symbol:"♦",value:2},
+    {name:"J",symbol:"♣",value:2},
+    {name:"10",symbol:"♠",value:1},
+    {name:"10",symbol:"♥",value:1},
+    {name:"10",symbol:"♦",value:1},
+    {name:"10",symbol:"♣",value:1}
+  ];
+  return ranks.sort(()=>Math.random()-.5);
+}
+
+function deal(){
+  const deck=makeDeck();
+  players.forEach((p,i)=>p.hand=deck.slice(i*4,i*4+4));
+  starter=(round-1)%6;
+  turn=starter;
+  actions=0;
+  highestBid=0;
+  highestBidder=-1;
+  acted=Array(6).fill(false);
+  dealt=true;
+  finished=false;
+  say("بدأت الجولة "+round+" من اللاعب "+(starter+1));
   update();
 }
 
-function finishAuction() {
-  if (highestBidder === -1) {
-    message("انتهت المزايدة بدون مزايد.");
-  } else {
-    message("انتهت المزايدة! صاحب أعلى مزايدة هو اللاعب " +
-      (highestBidder + 1) + " بمبلغ " + highestBid);
+function update(){
+  const area=document.getElementById("players");
+  area.innerHTML="";
+  players.forEach((p,i)=>{
+    const div=document.createElement("div");
+    div.className="player "+(i%2===0?"odd":"")+
+      (dealt&&!finished&&turn===i?" active":"");
+    div.innerHTML=
+      "<strong>"+(i+1)+"</strong>"+
+      "<div>"+p.name+"</div>"+
+      '<div class="score">'+p.score+" نقطة</div>"+
+      '<div class="back">'+(p.hand.length?"▧ ▧ ▧ ▧":"—")+"</div>"+
+      "<small>"+(acted[i]?"أنهى دوره":"")+"</small>";
+    area.appendChild(div);
+  });
+
+  document.getElementById("pot").textContent=highestBid;
+  document.getElementById("turnName").textContent=
+    finished?"انتهت المزايدة":(turn+1);
+
+  const cards=document.getElementById("myCards");
+  cards.innerHTML="";
+  if(dealt){
+    players[turn].hand.forEach(c=>{
+      const el=document.createElement("div");
+      el.className="card "+("♥♦".includes(c.symbol)?"red":"");
+      el.innerHTML=c.name+"<small>"+c.symbol+"</small>";
+      cards.appendChild(el);
+    });
   }
 
+  document.getElementById("bidBtn").disabled=!dealt||finished;
+}
+
+function say(text){
+  document.getElementById("message").textContent=text;
+}
+
+function makeBid(){
+  if(!dealt||finished)return;
+  const input=document.getElementById("bidAmount");
+  const amount=Number(input.value);
+
+  if(acted[turn]){
+    say("هذا اللاعب أنهى دوره بالفعل");
+    return;
+  }
+  if(!Number.isInteger(amount)||amount<5||amount%5!==0){
+    say("أدخل مبلغاً يبدأ من 5 ويكون من مضاعفات 5");
+    return;
+  }
+  if(amount<=highestBid){
+    say("يجب أن تكون المزايدة أعلى من "+highestBid);
+    return;
+  }
+  if(amount>players[turn].score){
+    say("المبلغ أكبر من رصيد اللاعب");
+    return;
+  }
+
+  highestBid=amount;
+  highestBidder=turn;
+  acted[turn]=true;
+  input.value="";
+  say("اللاعب "+(turn+1)+" زايد بمبلغ "+amount);
+  advance();
+}
+
+function withdraw(){
+  if(!dealt||finished)return;
+  if(acted[turn])return;
+  acted[turn]=true;
+  say("اللاعب "+(turn+1)+" انسحب من المزايدة");
+  advance();
+}
+
+function goAllIn(){
+  if(!dealt||finished)return;
+  if(acted[turn])return;
+
+  const amount=players[turn].score;
+  if(amount<=highestBid){
+    say("رصيد اللاعب لا يسمح بمزايدة أعلى من السوق. نحتاج تطبيق قاعدة سوقي الخاصة بهذه الحالة لاحقاً.");
+    return;
+  }
+  if(amount<5){
+    say("لا يوجد رصيد كافٍ للمزايدة");
+    return;
+  }
+
+  highestBid=amount;
+  highestBidder=turn;
+  acted[turn]=true;
+  say("اللاعب "+(turn+1)+" قال سوقي بمبلغ "+amount);
+  advance();
+}
+
+function advance(){
+  actions++;
+  if(actions>=6){
+    finished=true;
+    say(highestBidder===-1
+      ?"انتهت المزايدة دون مزايد"
+      :"انتهت المزايدة. صاحب السوق اللاعب "+
+       (highestBidder+1)+" بمبلغ "+highestBid);
+    update();
+    return;
+  }
+
+  turn=(starter+actions)%6;
+  while(acted[turn]&&actions<6){
+    actions++;
+    if(actions>=6)break;
+    turn=(starter+actions)%6;
+  }
+
+  if(actions>=6){
+    finished=true;
+    say(highestBidder===-1
+      ?"انتهت المزايدة دون مزايد"
+      :"انتهت المزايدة. صاحب السوق اللاعب "+
+       (highestBidder+1)+" بمبلغ "+highestBid);
+  }else{
+    say("الآن دور اللاعب "+(turn+1));
+  }
   update();
 }
 
-function advanceAuction() {
-  actionsCount++;
-
-  if (actionsCount >= 6) {
-    finishAuction();
-    return;
-  }
-
-  turn = (starter + actionsCount) % 6;
-  message("دور اللاعب " + (turn + 1));
-  update();
-}
-
-function raiseBid() {
-  if (!dealt) {
-    message("وزع الأوراق أولاً");
-    return;
-  }
-
-  let amount = prompt("أدخل مبلغ المزايدة، مثل 5 أو 50 أو 90:");
-
-  if (amount === null) return;
-
-  amount = Number(amount);
-
-  if (!Number.isInteger(amount) ||
-      amount < 5 || amount % 5 !== 0) {
-    message("المزايدة تبدأ من 5 وتكون بالخمسات");
-    return;
-  }
-
-  if (amount <= highestBid) {
-    message("يجب أن تكون المزايدة أعلى من أعلى مبلغ حالي");
-    return;
-  }
-
-  if (amount > players[turn].score) {
-    message("المبلغ أكبر من رصيد اللاعب");
-    return;
-  }
-
-  highestBid = amount;
-  highestBidder = turn;
-  pot = amount;
-  active.push(turn);
-
-  message("اللاعب " + (turn + 1) +
-    " زايد بمبلغ " + amount);
-
-  advanceAuction();
-}
-
-function passBid() {
-  if (!dealt) {
-    message("وزع الأوراق أولاً");
-    return;
-  }
-
-  passed.push(turn);
-
-  message("اللاعب " + (turn + 1) + " انسحب من المزايدة");
-
-  advanceAuction();
-}
-
-function marketEntry() {
-  if (!dealt) {
-    message("وزع الأوراق أولاً");
-    return;
-  }
-
-  if (actionsCount >= 6) {
-    message("انتهت المزايدة");
-    return;
-  }
-
-  marketPlayers.push(turn);
-  active.push(turn);
-
-  message("اللاعب " + (turn + 1) + " قال سوقي");
-
-  advanceAuction();
-}
-
-function nextRound() {
+function nextRound(){
   round++;
-  hands = [];
-  dealt = false;
-  turn = (round - 1) % 6;
-  starter = turn;
-  actionsCount = 0;
-  highestBid = 0;
-  highestBidder = -1;
-  pot = 0;
-  active = [];
-  passed = [];
-  marketPlayers = [];
-
-  message("الجولة " + round +
-    ". البداية من اللاعب " + (starter + 1));
-
-  update();
+  deal();
 }
 
-function resetGame() {
-  round = 1;
-  players.forEach(p => p.score = 100);
-  nextRound();
-  round = 1;
-  turn = 0;
-  starter = 0;
-  update();
+function resetGame(){
+  round=1;
+  players.forEach(p=>p.score=100);
+  deal();
 }
+
+update();
+</script>
+</body>
+</html>

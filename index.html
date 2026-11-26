@@ -9,24 +9,24 @@
 *{box-sizing:border-box}
 body{margin:0;padding:12px;background:#09291f;color:white;font-family:Arial;text-align:center}
 h1{color:#f2cc70}
-.subtitle{color:#d8c58d}
+.subtitle,.note{color:#d8c58d}
 .table{background:radial-gradient(#126044,#073526);border:8px solid #805633;border-radius:30px;padding:12px;margin:auto;max-width:850px}
 .players{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.player{border:3px solid #398bd0;border-radius:18px;padding:10px 4px;min-height:120px;background:#102d25}
+.player{border:3px solid #398bd0;border-radius:18px;padding:10px 4px;min-height:125px;background:#102d25}
 .player.odd{border-color:#c64d52}
 .player.active{outline:4px solid #e9c15f}
 .player strong{font-size:23px}
 .score{color:#f3ce70;font-weight:bold;margin:7px}
-.status{font-size:12px;color:#d9d9d9}
+.status{font-size:12px;color:#ddd;min-height:18px}
 .market{margin:20px auto;background:#111;border:5px solid #d9ad53;border-radius:25px;padding:12px;width:210px}
 .amount{font-size:42px;color:#f3ce70;font-weight:bold}
 .panel{background:#123b2d;border:2px solid #d9ad53;border-radius:18px;padding:14px;margin:16px auto;max-width:650px}
-.controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px auto}
+.controls{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;margin:12px auto}
 button{border:2px solid #d9ad53;border-radius:15px;padding:12px 16px;font-size:16px;font-weight:bold;background:#174c38;color:white}
 button.gold{background:#d9ad53;color:#171717}
 button.red{background:#8a2929}
 button:disabled{opacity:.4}
-input{width:120px;padding:12px;border-radius:10px;font-size:19px;text-align:center}
+input{width:115px;padding:12px;border-radius:10px;font-size:19px;text-align:center}
 #message{color:#f4d17c;min-height:42px;margin:14px}
 .cards{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
 .card{background:white;color:#171717;border-radius:10px;width:65px;height:98px;padding:8px;text-align:left;font-size:23px;font-weight:bold}
@@ -35,7 +35,7 @@ input{width:120px;padding:12px;border-radius:10px;font-size:19px;text-align:cent
 .hidden{display:none}
 .log{text-align:right;max-height:170px;overflow:auto;font-size:14px;line-height:1.8}
 .result{color:#f4d17c;font-size:19px}
-.note{font-size:12px;color:#b9c9c1;margin:15px}
+.note{font-size:12px;margin:15px}
 </style>
 </head>
 <body>
@@ -54,8 +54,9 @@ input{width:120px;padding:12px;border-radius:10px;font-size:19px;text-align:cent
 
 <div class="panel">
   <h3 id="stageTitle">المزايدة</h3>
-  <div id="turnName">دور اللاعب 1</div>
-  <div id="message">وزع الأوراق لبدء الجولة</div>
+  <div id="turnName"></div>
+  <div id="message">اضغط توزيع الأوراق لبدء اللعب</div>
+
   <div class="controls" id="auctionControls">
     <input id="bidAmount" type="number" min="5" step="5" placeholder="المبلغ">
     <button class="gold" onclick="makeBid()">اعتماد المزايدة</button>
@@ -68,12 +69,12 @@ input{width:120px;padding:12px;border-radius:10px;font-size:19px;text-align:cent
 <div class="panel">
   <h3>أوراق اللاعب الحالي</h3>
   <div class="cards" id="myCards"></div>
-  <div class="note">تظهر أوراق اللاعب الحالي فقط في هذه النسخة التجريبية.</div>
+  <div class="note">لا تظهر أوراق الزملاء أثناء طلب المشاركة.</div>
 </div>
 
 <div class="panel">
-  <h3>سجل المزايدات</h3>
-  <div class="log" id="history">لا توجد مزايدات بعد</div>
+  <h3>سجل اللعبة</h3>
+  <div class="log" id="history">لا يوجد سجل بعد</div>
 </div>
 
 <div class="controls">
@@ -86,6 +87,13 @@ input{width:120px;padding:12px;border-radius:10px;font-size:19px;text-align:cent
   <h3>نتيجة المداقشة</h3>
   <div id="resultText" class="result"></div>
   <div id="revealedHands"></div>
+</div>
+
+<div class="panel hidden" id="sharePanel">
+  <h3>توزيع مكسب السوق</h3>
+  <div id="shareInfo"></div>
+  <div id="shareInputs"></div>
+  <button class="gold" onclick="distributeMarket()">اعتماد التوزيع</button>
 </div>
 
 <div class="note">
@@ -106,14 +114,21 @@ let highestBid=0,highestBidder=-1;
 let bids=Array(6).fill(0);
 let acted=Array(6).fill(false);
 let withdrawn=Array(6).fill(false);
+let allIn=Array(6).fill(false);
 let dealt=false,stage="ready";
 let participants=[],invited=[],inviteIndex=0;
 let history=[];
+let matchOver=false;
+
+function teamOf(i){return i%2;}
 
 function makeDeck(){
   const deck=[];
   const suits=["♠","♥","♦","♣"];
-  const ranks=[["A",5,5],["K",4,5],["Q",3,5],["J",2,5],["10",1,4]];
+  const ranks=[
+    ["A",5,5],["K",4,5],["Q",3,5],
+    ["J",2,5],["10",1,4]
+  ];
   ranks.forEach(([name,value,count])=>{
     for(let i=0;i<count;i++)
       deck.push({name,value,symbol:suits[i%4]});
@@ -121,9 +136,25 @@ function makeDeck(){
   return deck.sort(()=>Math.random()-.5);
 }
 
+function say(t){
+  document.getElementById("message").textContent=t;
+}
+
+function log(t){
+  history.unshift(t);
+  document.getElementById("history").innerHTML=
+    history.map(x=>"<div>"+x+"</div>").join("");
+}
+
 function deal(){
-  if(players.filter(p=>!p.eliminated).length<2){
-    say("لا يوجد عدد كافٍ من اللاعبين لإكمال اللعبة");
+  if(matchOver){
+    say("انتهت المباراة. اضغط إعادة اللعبة لبدء مباراة جديدة.");
+    return;
+  }
+
+  const alive=players.filter(p=>!p.eliminated);
+  if(alive.length<2){
+    say("لا يوجد عدد كافٍ من اللاعبين.");
     return;
   }
 
@@ -140,6 +171,7 @@ function deal(){
   bids=Array(6).fill(0);
   acted=Array(6).fill(false);
   withdrawn=Array(6).fill(false);
+  allIn=Array(6).fill(false);
   participants=[];
   invited=[];
   inviteIndex=0;
@@ -148,20 +180,20 @@ function deal(){
   stage="auction";
 
   document.getElementById("resultPanel").classList.add("hidden");
-  say("الجولة "+round+" بدأت من اللاعب "+(starter+1));
+  document.getElementById("sharePanel").classList.add("hidden");
+  document.getElementById("stageControls").innerHTML="";
+  log("بدأت الجولة "+round);
+  say("بدأت الجولة من اللاعب "+(starter+1));
+  skipEliminated();
   update();
 }
 
-function teamOf(i){return i%2;}
-
-function say(t){
-  document.getElementById("message").textContent=t;
-}
-
-function log(t){
-  history.unshift(t);
-  document.getElementById("history").innerHTML=
-    history.map(x=>"<div>"+x+"</div>").join("");
+function skipEliminated(){
+  while(actions<6 && players[turn].eliminated){
+    actions++;
+    turn=(starter+actions)%6;
+  }
+  if(actions>=6)endAuction();
 }
 
 function update(){
@@ -170,14 +202,16 @@ function update(){
 
   players.forEach((p,i)=>{
     const div=document.createElement("div");
-    let active=(stage==="auction"&&turn===i)||
+    const active=(stage==="auction"&&turn===i)||
       (stage==="consult"&&invited[inviteIndex]===i);
+
     div.className="player "+(i%2===0?"odd":"")+
       (active?" active":"");
 
     let status="";
     if(p.eliminated)status="خارج اللعبة";
     else if(withdrawn[i])status="منسحب";
+    else if(allIn[i])status="سوقي";
     else if(acted[i]&&bids[i]>0)status="زايد "+bids[i];
     else if(participants.includes(i))status="يداقش";
 
@@ -185,10 +219,12 @@ function update(){
       "<div>"+p.name+"</div>"+
       '<div class="score">'+p.score+" نقطة</div>"+
       '<div class="status">'+status+"</div>";
+
     area.appendChild(div);
   });
 
   document.getElementById("pot").textContent=highestBid;
+
   document.getElementById("stageTitle").textContent=
     stage==="auction"?"المزايدة":
     stage==="consult"?"طلبات الدقش":
@@ -196,8 +232,7 @@ function update(){
 
   document.getElementById("turnName").textContent=
     stage==="auction"?"دور اللاعب "+(turn+1):
-    stage==="consult"?"طلب المشاركة":
-    stage==="compare"?"انتهت قرارات المشاركة":"";
+    stage==="consult"?"طلبات مشاركة الزملاء":"";
 
   document.getElementById("auctionControls").classList.toggle(
     "hidden",stage!=="auction"
@@ -209,14 +244,9 @@ function update(){
 function renderCurrentCards(){
   const box=document.getElementById("myCards");
   box.innerHTML="";
+  if(!dealt||stage!=="auction"||players[turn].eliminated)return;
 
-  if(!dealt)return;
-
-  // لا نعرض أوراق أي لاعب أثناء طلبات الدقش.
-  if(stage!=="auction")return;
-
-  const hand=players[turn].hand;
-  hand.forEach(c=>{
+  players[turn].hand.forEach(c=>{
     const el=document.createElement("div");
     el.className="card "+("♥♦".includes(c.symbol)?"red":"");
     el.innerHTML=c.name+"<small>"+c.symbol+"</small>";
@@ -230,37 +260,28 @@ function advance(){
     endAuction();
     return;
   }
-
   turn=(starter+actions)%6;
-
-  while(players[turn].eliminated){
-    actions++;
-    if(actions>=6){
-      endAuction();
-      return;
-    }
-    turn=(starter+actions)%6;
+  skipEliminated();
+  if(stage==="auction"){
+    say("المزايدة الحالية "+highestBid+
+      " نقطة. دور اللاعب "+(turn+1));
+    update();
   }
-
-  say("المزايدة الحالية "+highestBid+
-    ". دور اللاعب "+(turn+1));
-  update();
 }
 
 function makeBid(){
-  if(stage!=="auction")return;
-  if(acted[turn])return;
+  if(stage!=="auction"||acted[turn]||players[turn].eliminated)return;
 
   const amount=Number(document.getElementById("bidAmount").value);
 
   if(!Number.isInteger(amount)||amount<5||amount%5!==0)
-    return say("المزايدة تبدأ من 5 وتكون بالخمسات");
+    return say("المزايدة تبدأ من 5 وتكون بالخمسات.");
 
   if(amount<=highestBid)
-    return say("يجب أن تكون أعلى من "+highestBid);
+    return say("يجب أن تكون أعلى من "+highestBid+".");
 
   if(amount>players[turn].score)
-    return say("المبلغ أكبر من رصيد اللاعب. استخدم سوقي إذا كان رصيدك أقل.");
+    return say("المبلغ أكبر من رصيد اللاعب. استخدم سوقي.");
 
   bids[turn]=amount;
   acted[turn]=true;
@@ -273,20 +294,12 @@ function makeBid(){
 }
 
 function goAllIn(){
-  if(stage!=="auction"||acted[turn])return;
+  if(stage!=="auction"||acted[turn]||players[turn].eliminated)return;
 
   const amount=players[turn].score;
-
-  if(amount<=0){
-    bids[turn]=0;
-    acted[turn]=true;
-    log("اللاعب "+(turn+1)+" قال سوقي برصيد صفر");
-    advance();
-    return;
-  }
-
-  bids[turn]=amount;
   acted[turn]=true;
+  allIn[turn]=true;
+  bids[turn]=amount;
 
   if(amount>highestBid){
     highestBid=amount;
@@ -298,7 +311,7 @@ function goAllIn(){
 }
 
 function withdraw(){
-  if(stage!=="auction"||acted[turn])return;
+  if(stage!=="auction"||acted[turn]||players[turn].eliminated)return;
   acted[turn]=true;
   withdrawn[turn]=true;
   bids[turn]=0;
@@ -308,8 +321,10 @@ function withdraw(){
 
 function endAuction(){
   if(highestBidder===-1){
-    stage="ready";
-    say("انتهت المزايدة دون مزايد");
+    stage="done";
+    say("انتهت المزايدة دون مزايد.");
+    document.getElementById("stageControls").innerHTML=
+      '<button class="gold" onclick="nextRound()">الجولة التالية</button>';
     update();
     return;
   }
@@ -320,19 +335,20 @@ function endAuction(){
   const ownerTeam=teamOf(highestBidder);
   const opponentTeam=1-ownerTeam;
 
-  // المنافسون الذين لم ينسحبوا يشاركون.
+  // مشاركة لاعبي الفريق المنافس الذين زايدوا أو قالوا سوقي.
   for(let i=0;i<6;i++){
-    if(teamOf(i)===opponentTeam && !withdrawn[i] &&
-       !players[i].eliminated && bids[i]>0){
+    if(teamOf(i)===opponentTeam&&!withdrawn[i]&&
+       !players[i].eliminated&&(bids[i]>0||allIn[i])){
       participants.push(i);
     }
   }
 
-  // استشارة زملاء صاحب السوق الذين لم ينسحبوا.
+  // صاحب السوق يستشير زملاءه الذين زايدوا أو قالوا سوقي.
   invited=[];
   for(let i=0;i<6;i++){
-    if(teamOf(i)===ownerTeam && i!==highestBidder &&
-       !withdrawn[i] && !players[i].eliminated && bids[i]>0){
+    if(teamOf(i)===ownerTeam&&i!==highestBidder&&
+       !withdrawn[i]&&!players[i].eliminated&&
+       (bids[i]>0||allIn[i])){
       invited.push(i);
     }
   }
@@ -340,8 +356,7 @@ function endAuction(){
   inviteIndex=0;
   log("صاحب السوق اللاعب "+(highestBidder+1)+
       " بمبلغ "+highestBid);
-  say("صاحب السوق اللاعب "+(highestBidder+1)+
-      " يداقش إجباريًا. تبدأ طلبات زملائه.");
+  say("صاحب السوق يداقش إجباريًا. تبدأ طلبات زملائه.");
   showInvitation();
 }
 
@@ -366,6 +381,7 @@ function showInvitation(){
     '<button class="gold" onclick="answerInvite(true)">نعم</button>'+
     '<button class="red" onclick="answerInvite(false)">لا</button>'+
     '</div>';
+
   update();
 }
 
@@ -405,37 +421,77 @@ function evaluateHand(hand){
       second:pairs[1].value,name:"زوجان"};
 
   if(pairs.length===1)
-    return {category:2,rank:pairs[0].value,
-      name:"زوج"};
+    return {category:2,rank:pairs[0].value,name:"زوج"};
 
-  return {category:1,rank:groups[0].value,
-    name:"أعلى ورقة"};
+  return {category:1,rank:groups[0].value,name:"أعلى ورقة"};
 }
 
 function compareScore(a,b){
-  return b.category-a.category ||
-    b.rank-a.rank ||
+  return b.category-a.category||
+    b.rank-a.rank||
     (b.second||0)-(a.second||0);
+}
+
+function checkElimination(){
+  const out=[0,0];
+
+  players.forEach((p,i)=>{
+    if(p.eliminated)out[teamOf(i)]++;
+  });
+
+  if(out[0]>=2||out[1]>=2){
+    matchOver=true;
+    stage="done";
+    const winningTeam=out[0]>=2?2:1;
+    say("انتهت المباراة! الفريق "+winningTeam+" فاز.");
+    document.getElementById("resultText").textContent=
+      "الفريق "+winningTeam+" فاز بالمباراة.";
+    document.getElementById("stageControls").innerHTML=
+      '<button class="red" onclick="resetGame()">إعادة المباراة</button>';
+    document.getElementById("sharePanel").classList.add("hidden");
+    update();
+    return true;
+  }
+  return false;
 }
 
 function settle(winner){
   const owner=highestBidder;
 
-  participants.forEach(i=>{
-    if(i===winner)return;
+  if(winner===owner){
+    players[owner].score+=highestBid;
 
-    if(i===owner){
-      players[i].score=Math.max(0,players[i].score-highestBid);
+    // اللاعبون المنافسون المشاركون يخسرون مبالغهم.
+    participants.forEach(i=>{
+      if(teamOf(i)!==teamOf(owner)){
+        players[i].score=Math.max(0,players[i].score-bids[i]);
+      }
+    });
+  }else{
+    // صاحب السوق يخسر كامل مزايدته.
+    players[owner].score=Math.max(0,players[owner].score-highestBid);
+
+    // كل مشارك آخر يخسر مبلغ دخوله، حتى الفائز.
+    participants.forEach(i=>{
+      if(i!==owner){
+        players[i].score=Math.max(0,players[i].score-bids[i]);
+      }
+    });
+
+    // الفائز يأخذ أعلى مزايدة.
+    players[winner].score+=highestBid;
+  }
+
+  participants.forEach(i=>{
+    const p=players[i];
+
+    if(p.score>0){
+      p.secondChance=false;
+    }else if(p.secondChance){
+      p.eliminated=true;
+      log("اللاعب "+(i+1)+" خرج من اللعبة بعد خسارته فرصته الثانية");
     }else{
-      players[i].score=Math.max(0,players[i].score-bids[i]);
-    }
-  });
-
-  players[winner].score+=highestBid;
-
-  participants.forEach(i=>{
-    if(players[i].score===0&&!players[i].secondChance){
-      players[i].secondChance=true;
+      p.secondChance=true;
       log("اللاعب "+(i+1)+" وصل للصفر وله فرصة ثانية");
     }
   });
@@ -467,6 +523,7 @@ function compareHands(){
       html+='<div class="card '+("♥♦".includes(c.symbol)?"red":"")+'">'+
         c.name+'<small>'+c.symbol+'</small></div>';
     });
+
     html+='</div></div>';
   });
 
@@ -476,16 +533,19 @@ function compareHands(){
     document.getElementById("resultText").textContent=
       "تعادل بين اللاعبين: "+
       tied.map(r=>r.player+1).join(" و")+
-      ". لم يتم احتساب النقاط بسبب التعادل.";
+      ". لم يتم احتساب النقاط.";
     say("تعادل في المقارنة.");
   }else{
     settle(best.player);
     document.getElementById("resultText").textContent=
       "الفائز اللاعب "+(best.player+1)+
       " — "+best.score.name+
-      " — حصل على "+highestBid+" نقطة";
-    say("الفائز اللاعب "+(best.player+1)+
-      ". تم احتساب النقاط.");
+      " — مبلغ السوق "+highestBid+" نقطة";
+    say("الفائز اللاعب "+(best.player+1)+". تم احتساب النقاط.");
+
+    if(best.player===highestBidder){
+      showSharePanel();
+    }
   }
 
   stage="done";
@@ -493,20 +553,102 @@ function compareHands(){
     '<button class="gold" onclick="nextRound()">الجولة التالية</button>';
 
   update();
+  checkElimination();
+}
+
+function showSharePanel(){
+  const owner=highestBidder;
+  const mates=players.map((p,i)=>
+    i!==owner&&teamOf(i)===teamOf(owner)?i:-1
+  ).filter(i=>i!==-1&&!players[i].eliminated);
+
+  if(mates.length===0)return;
+
+  document.getElementById("sharePanel").classList.remove("hidden");
+  document.getElementById("shareInfo").textContent=
+    "مكسب السوق "+highestBid+" نقطة. وزّع ما تريد على زملائك، والباقي لك.";
+
+  let html="";
+  mates.forEach(i=>{
+    html+='<div class="controls">حصة اللاعب '+(i+1)+
+      '<input type="number" id="share-'+i+
+      '" min="0" step="1" value="0"></div>';
+  });
+
+  document.getElementById("shareInputs").innerHTML=html;
+}
+
+function distributeMarket(){
+  if(highestBidder<0)return;
+
+  const owner=highestBidder;
+  const mates=players.map((p,i)=>
+    i!==owner&&teamOf(i)===teamOf(owner)?i:-1
+  ).filter(i=>i!==-1&&!players[i].eliminated);
+
+  let total=0;
+  const amounts=[];
+
+  for(const i of mates){
+    const field=document.getElementById("share-"+i);
+    const value=Number(field?field.value:0);
+
+    if(!Number.isInteger(value)||value<0){
+      say("أدخل مبالغ صحيحة.");
+      return;
+    }
+
+    amounts.push({player:i,amount:value});
+    total+=value;
+  }
+
+  if(total>highestBid){
+    say("مجموع التوزيع أكبر من مكسب السوق.");
+    return;
+  }
+
+  if(document.getElementById("sharePanel").dataset.done==="yes"){
+    say("تم اعتماد التوزيع مسبقًا.");
+    return;
+  }
+
+  // خصم الحصص من مكسب صاحب السوق وإضافتها للزملاء.
+  players[owner].score-=total;
+
+  amounts.forEach(item=>{
+    players[item.player].score+=item.amount;
+  });
+
+  document.getElementById("sharePanel").dataset.done="yes";
+  document.getElementById("sharePanel").classList.add("hidden");
+
+  log("وزع صاحب السوق "+total+" نقطة على زملائه.");
+  say("تم اعتماد التوزيع. بقي لصاحب السوق "+
+      (highestBid-total)+" نقطة من المكسب.");
+
+  update();
 }
 
 function nextRound(){
+  if(matchOver)return;
   round++;
+  document.getElementById("sharePanel").dataset.done="";
   deal();
 }
 
 function resetGame(){
   round=1;
+  matchOver=false;
+
   players.forEach(p=>{
     p.score=100;
     p.eliminated=false;
     p.secondChance=false;
+    p.hand=[];
   });
+
+  document.getElementById("sharePanel").dataset.done="";
+  document.getElementById("sharePanel").classList.add("hidden");
   deal();
 }
 

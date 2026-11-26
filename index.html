@@ -1,0 +1,135 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مداقش خالد</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#123d2c;color:white;
+ font-family:Arial,sans-serif;text-align:center;
+}
+header{padding:18px;background:#092b20}
+h1{margin:5px;color:#f5d47a}
+button{
+ border:0;border-radius:10px;padding:12px 20px;
+ background:#f5d47a;color:#222;font-size:17px;
+ font-weight:bold;margin:6px;
+}
+.table{
+ margin:20px auto;padding:20px;
+ background:#176044;border:8px solid #8b603c;
+ border-radius:35px;max-width:600px;min-height:260px;
+}
+.players{
+ display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+}
+.player{
+ background:#0b3828;border:2px solid #e6c779;
+ border-radius:12px;padding:12px;
+}
+.cards{
+ display:flex;justify-content:center;flex-wrap:wrap;
+ gap:8px;margin:20px 0;
+}
+.card{
+ background:#fff;color:#17251c;border-radius:9px;
+ width:62px;height:88px;display:flex;
+ align-items:center;justify-content:center;
+ font-size:19px;font-weight:bold;
+ border:2px solid #ddd;
+}
+.card.selected{border:4px solid gold;transform:translateY(-8px)}
+.info{padding:12px}
+</style>
+</head>
+<body>
+<header>
+<h1>مداقش خالد</h1>
+<p>لعبة الأصدقاء</p>
+</header>
+
+<div class="info">
+ عدد اللاعبين: 6 | عدد الأوراق: 24
+</div>
+
+<div class="table">
+<div class="players" id="players"></div>
+<p id="status">اضغط توزيع الأوراق للبدء</p>
+</div>
+
+<h3>أوراقك</h3>
+<div class="cards" id="mycards"></div>
+
+<button onclick="startGame()">توزيع الأوراق</button>
+<button onclick="playCard()">العب الورقة</button>
+
+<script>
+const types=[
+ {name:"إكه",count:5,power:5},
+ {name:"باشا",count:5,power:4},
+ {name:"بنت",count:5,power:3},
+ {name:"ولد",count:5,power:2},
+ {name:"عشرة",count:4,power:1}
+];
+
+let hands=[];
+let selected=-1;
+
+function startGame(){
+ let deck=[];
+ types.forEach(t=>{
+  for(let i=0;i<t.count;i++)
+   deck.push({...t});
+ });
+ deck.sort(()=>Math.random()-.5);
+
+ hands=[];
+ for(let i=0;i<6;i++)
+  hands.push(deck.slice(i*4,i*4+4));
+
+ selected=-1;
+ document.getElementById("status").textContent=
+ "تم توزيع الأوراق! اختر ورقة.";
+ render();
+}
+
+function render(){
+ let p=document.getElementById("players");
+ p.innerHTML="";
+ for(let i=0;i<6;i++){
+  p.innerHTML+=`<div class="player">
+  لاعب ${i+1}<br>${hands[i]?.length||0} أوراق
+  </div>`;
+ }
+ let c=document.getElementById("mycards");
+ c.innerHTML="";
+ (hands[0]||[]).forEach((card,i)=>{
+  let el=document.createElement("div");
+  el.className="card"+(selected===i?" selected":"");
+  el.textContent=card.name;
+  el.onclick=()=>{
+   selected=i;render();
+  };
+  c.appendChild(el);
+ });
+}
+
+function playCard(){
+ if(!hands.length){
+  alert("وزع الأوراق أولاً");return;
+ }
+ if(selected<0){
+  alert("اختر ورقة أولاً");return;
+ }
+ let card=hands[0].splice(selected,1)[0];
+ selected=-1;
+ document.getElementById("status").textContent=
+ "لعبت ورقة "+card.name;
+ render();
+}
+</script>
+</body>
+</html>

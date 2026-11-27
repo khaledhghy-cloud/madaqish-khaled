@@ -116,33 +116,74 @@ async function joinRoom(){
   if(joined)await openRoom();
 }
 
-async function addPlayer(){
-  const {data:existing}=await db.from("mdk_players")
-    .select("*").eq("room_id",room.id).eq("user_id",user.id).maybeSingle();
+  async function addPlayer(){
 
-  if(existing){myPlayer=existing;return true}
+  const {data:authData,error:authError}=await db.auth.getUser();
 
-  const {data:all,error:readError}=await db.from("mdk_players")
-    .select("player_number").eq("room_id",room.id);
+  if(authError || !authData.user){
+    alert("انتهت جلسة الدخول، اخرج وادخل من جديد");
+    return false;
+  }
 
-  if(readError){alert("تعذر قراءة اللاعبين: "+readError.message);return false}
-  if(all.length>=6){alert("الغرفة مكتملة، الحد 6 لاعبين");return false}
+  const userId=authData.user.id;
+
+  const {data:existing,error:existingError}=await db
+    .from("mdk_players")
+    .select("*")
+    .eq("room_id",room.id)
+    .eq("user_id",userId)
+    .maybeSingle();
+
+  if(existing){
+    myPlayer=existing;
+    return true;
+  }
+
+  const {data:all,error:readError}=await db
+    .from("mdk_players")
+    .select("player_number")
+    .eq("room_id",room.id);
+
+  if(readError){
+    alert("تعذر قراءة اللاعبين: "+readError.message);
+    return false;
+  }
+
+  if(all.length>=6){
+    alert("الغرفة مكتملة");
+    return false;
+  }
 
   const used=all.map(p=>p.player_number);
-  let number=[1,2,3,4,5,6].find(n=>!used.includes(n));
+  const number=[1,2,3,4,5,6].find(n=>!used.includes(n));
 
-  const {data,error}=await db.from("mdk_players").insert({
-    room_id:room.id,
-    user_id:user.id,
-    player_number:number,
-    player_name:playerName,
-    team_number:number%2===1?1:2,
-    score:100,
-    is_connected:true
-  }).select().single();
+  if(!number){
+    alert("لا يوجد مكان متاح");
+    return false;
+  }
 
-  if(error){alert("تعذر الانضمام: "+error.message);return false}
+  const {data,error}=await db
+    .from("mdk_players")
+    .insert({
+      room_id:room.id,
+      user_id:userId,
+      player_number:number,
+      player_name:playerName,
+      team_number:number%2===1?1:2,
+      score:100,
+      is_connected:true
+    })
+    .select()
+    .single();
+
+  if(error){
+    alert("تعذر الانضمام: "+error.message);
+    return false;
+  }
+
   myPlayer=data;
+  return true;
+}
   return true;
 }
 

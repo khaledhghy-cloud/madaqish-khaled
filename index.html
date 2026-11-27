@@ -118,14 +118,12 @@ async function joinRoom(){
 
   async function addPlayer(){
 
-  const {data:authData,error:authError}=await db.auth.getUser();
+    const userId = user?.id;
 
-  if(authError || !authData.user){
-    alert("انتهت جلسة الدخول، اخرج وادخل من جديد");
-    return false;
-  }
-
-  const userId=authData.user.id;
+if (!userId) {
+  alert("تعذر تحديد المستخدم، أعد تسجيل الدخول");
+  return false;
+}
 
   const {data:existing,error:existingError}=await db
     .from("mdk_players")

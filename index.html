@@ -70,6 +70,7 @@ function hide(id){$(id).classList.add("hidden")}
 function say(t){$("message").textContent=t}
 
 async function start(){
+  alert("وصلنا إلى دالة الدخول");
   alert("زر الدخول يعمل");
   playerName=$("name").value.trim();
   if(!playerName)return alert("اكتب اسمك أولاً");

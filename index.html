@@ -169,27 +169,40 @@ if (!userId) {
     return false;
   }
 
-  const {data,error}=await db
-    .from("mdk_players")
-    .insert({
-      room_id:room.id,
-      user_id:userId,
-      player_number:number,
-      player_name:playerName,
-      team_number:number%2===1?1:2,
-      score:100,
-      is_connected:true
-    })
-    .select()
-    .single();
+ 
+const playerId = crypto.randomUUID();
 
-  if(error){
-    alert("تعذر الانضمام: "+error.message);
-    return false;
-  }
+const { error } = await db
+  .from("mdk_players")
+  .insert({
+    id: playerId,
+    room_id: room.id,
+    user_id: userId,
+    player_number: number,
+    player_name: playerName,
+    team_number: number % 2 === 1 ? 1 : 2,
+    score: 100,
+    is_connected: true
+  });
 
-  myPlayer=data;
-  return true;
+if (error) {
+  alert("تعذر الانضمام: " + error.message);
+  return false;
+}
+
+myPlayer = {
+  id: playerId,
+  room_id: room.id,
+  user_id: userId,
+  player_number: number,
+  player_name: playerName,
+  team_number: number % 2 === 1 ? 1 : 2,
+  score: 100,
+  is_connected: true
+};
+
+return true;
+ 
 }
 
 async function openRoom(){

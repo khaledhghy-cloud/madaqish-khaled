@@ -123,7 +123,12 @@ alert("تم الوصول إلى دالة دخول الغرفة");
   async function addPlayer(){
 
     const userId = user?.id;
+const {data:{user:authUser},error:authError}=await db.auth.getUser();
 
+if(authError || !authUser || authUser.id !== userId){
+  alert("اختلاف هوية المستخدم: "+(authUser?.id || "NULL")+" / "+(userId || "NULL"));
+  return false;
+}
 if (!userId) {
   alert("تعذر تحديد المستخدم، أعد تسجيل الدخول");
   return false;

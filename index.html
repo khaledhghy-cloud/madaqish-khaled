@@ -116,12 +116,12 @@ async function joinRoom(){
 }
 
 async function addPlayer(){
-  const {data:existing}=await db.from("room_players")
+  const {data:existing}=await db.from("mdk_players")
     .select("*").eq("room_id",room.id).eq("user_id",user.id).maybeSingle();
 
   if(existing){myPlayer=existing;return true}
 
-  const {data:all,error:readError}=await db.from("room_players")
+  const {data:all,error:readError}=await db.from("mdk_players")
     .select("player_number").eq("room_id",room.id);
 
   if(readError){alert("تعذر قراءة اللاعبين: "+readError.message);return false}
@@ -130,7 +130,7 @@ async function addPlayer(){
   const used=all.map(p=>p.player_number);
   let number=[1,2,3,4,5,6].find(n=>!used.includes(n));
 
-  const {data,error}=await db.from("room_players").insert({
+  const {data,error}=await db.from("mdk_players").insert({
     room_id:room.id,
     user_id:user.id,
     player_number:number,
@@ -155,7 +155,7 @@ async function openRoom(){
 }
 
 async function refreshRoom(){
-  const {data,error}=await db.from("room_players")
+  const {data,error}=await db.from("mdk_players")
     .select("player_number,player_name,team_number,score,is_connected")
     .eq("room_id",room.id).order("player_number");
 
@@ -194,7 +194,7 @@ function subscribeRoom(){
 
 async function leaveRoom(){
   if(myPlayer){
-    await db.from("room_players")
+    await db.from("mdk_players")
       .update({is_connected:false})
       .eq("room_id",room.id).eq("user_id",user.id);
   }

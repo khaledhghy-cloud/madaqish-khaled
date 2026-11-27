@@ -147,67 +147,6 @@ async function addPlayer(){
   return true;
 }
 
-  }
-
-  const {data:all,error:readError}=await db
-    .from("mdk_players")
-    .select("player_number")
-    .eq("room_id",room.id);
-
-  if(readError){
-    alert("تعذر قراءة اللاعبين: "+readError.message);
-    return false;
-  }
-
-  if(all.length>=6){
-    alert("الغرفة مكتملة");
-    return false;
-  }
-
-  const used=all.map(p=>p.player_number);
-  const number=[1,2,3,4,5,6].find(n=>!used.includes(n));
-
-  if(!number){
-    alert("لا يوجد مكان متاح");
-    return false;
-  }
-
- 
-const playerId = crypto.randomUUID();
-
-const { error } = await db
-  .from("mdk_players")
-  .insert({
-    id: playerId,
-    room_id: room.id,
-    user_id: userId,
-    player_number: number,
-    player_name: playerName,
-    team_number: number % 2 === 1 ? 1 : 2,
-    score: 100,
-    is_connected: true
-  });
-
-if (error) {
-  alert("تعذر الانضمام: " + error.message);
-  return false;
-}
-
-myPlayer = {
-  id: playerId,
-  room_id: room.id,
-  user_id: userId,
-  player_number: number,
-  player_name: playerName,
-  team_number: number % 2 === 1 ? 1 : 2,
-  score: 100,
-  is_connected: true
-};
-
-return true;
- 
-}
-
 async function openRoom(){
   hide("homePanel");
   show("gamePanel");

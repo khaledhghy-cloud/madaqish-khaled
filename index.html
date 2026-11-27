@@ -120,30 +120,31 @@ alert("تم الوصول إلى دالة دخول الغرفة");
   if(joined)await openRoom();
 }
 
-  async function addPlayer(){
+  
+async function addPlayer(){
 
-    const userId = user?.id;
-const {data:{user:authUser},error:authError}=await db.auth.getUser();
+  const {data:{user:authUser},error:authError} =
+    await db.auth.getUser();
 
-if(authError || !authUser || authUser.id !== userId){
-  alert("اختلاف هوية المستخدم: "+(authUser?.id || "NULL")+" / "+(userId || "NULL"));
-  return false;
+  if(authError || !authUser || authUser.id !== user?.id){
+    alert("تعذر التحقق من هوية المستخدم");
+    return false;
+  }
+
+  const {data,error} = await db.rpc("mdk_join_room",{
+    p_room_id: room.id,
+    p_player_name: playerName
+  });
+
+  if(error){
+    alert("تعذر الانضمام: " + error.message);
+    return false;
+  }
+
+  myPlayer = data;
+  return true;
 }
-if (!userId) {
-  alert("تعذر تحديد المستخدم، أعد تسجيل الدخول");
-  return false;
-}
 
-  const {data:existing,error:existingError}=await db
-    .from("mdk_players")
-    .select("*")
-    .eq("room_id",room.id)
-    .eq("user_id",userId)
-    .maybeSingle();
-
-  if(existing){
-    myPlayer=existing;
-    return true;
   }
 
   const {data:all,error:readError}=await db

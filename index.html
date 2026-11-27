@@ -107,7 +107,6 @@ async function joinRoom(){
   alert("المستخدم غير مسجل الدخول");
   return;
 }
-alert("تم الوصول إلى دالة دخول الغرفة");
   const code=$("roomCode").value.trim().toUpperCase();
   if(!code)return alert("اكتب رمز الغرفة");
   const {data,error}=await db.from("mdk_rooms")

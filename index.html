@@ -180,7 +180,7 @@ function subscribeRoom(){
   if(roomChannel)db.removeChannel(roomChannel);
   roomChannel=db.channel("room-"+room.id)
     .on("postgres_changes",{
-      event:"*",schema:"public",table:"room_players",
+      event:"*",schema:"public",table:"mdk_players",
       filter:"room_id=eq."+room.id
     },()=>refreshRoom())
     .on("postgres_changes",{
